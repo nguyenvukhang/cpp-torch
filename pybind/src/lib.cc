@@ -51,7 +51,7 @@ class Window {
     auto opts = arrow::ConcatenateTablesOptions();
     opts.unify_schemas = true;
     opts.field_merge_options.promote_integer_to_float = true;
-    return arrow::ConcatenateTables(tbls, opts).ValueUnsafe();
+    return arrow::ConcatenateTables(tbls, opts).MoveValueUnsafe();
   }
 
   void push(std::shared_ptr<arrow::Table> tbl) {
@@ -68,7 +68,7 @@ class Window {
                                 .MoveValueUnsafe();
     std::shared_ptr<arrow::ChunkedArray> failed_serial_numbers =
         ac::CallFunction("filter", {today, m_failed})
-            .ValueUnsafe()
+            .MoveValueUnsafe()
             .table()
             ->GetColumnByName("serial_number");
 
@@ -77,20 +77,20 @@ class Window {
     std::shared_ptr<arrow::Table> tbl;
     for (int i = 1; i < pos_len; i++) {
       if ((tbl = rb[-i]) == NULL) continue;
-      arrow::Datum mask =
-          ac::IsIn(tbl->GetColumnByName("serial_number"), opts).ValueUnsafe();
+      arrow::Datum mask = ac::IsIn(tbl->GetColumnByName("serial_number"), opts)
+                              .MoveValueUnsafe();
 
       std::shared_ptr<arrow::ChunkedArray> label_col =
           tbl->GetColumnByName("failure");
       arrow::Datum x =
           ac::CallFunction("if_else", {mask, arrow::MakeScalar(1), label_col})
-              .ValueUnsafe();
+              .MoveValueUnsafe();
 
       bool set = 0;
       for (int j = 0; j < tbl->schema()->num_fields(); j++) {
         const std::shared_ptr<arrow::Field> f = tbl->schema()->field(j);
         if (f->name() == "failure") {
-          tbl = tbl->SetColumn(j, f, x.chunked_array()).ValueUnsafe();
+          tbl = tbl->SetColumn(j, f, x.chunked_array()).MoveValueUnsafe();
           set |= 1;
           break;
         }

@@ -35,7 +35,7 @@ void min_maxer(const std::shared_ptr<arrow::Table>& tbl) {
   arrow::Datum min_max =
       ac::CallFunction("min_max", {tbl->GetColumnByName("capacity_bytes")},
                        &scalar_aggregate_options)
-          .ValueUnsafe();
+          .MoveValueUnsafe();
 
   std::shared_ptr<arrow::Scalar> min_value, max_value;
   min_value = min_max.scalar_as<arrow::StructScalar>().value[0];
@@ -49,7 +49,7 @@ void adder(const std::shared_ptr<arrow::Table>& tbl) {
   arrow::Datum datum =
       ac::CallFunction("add",
                        {tbl->GetColumnByName("capacity_bytes"), increment})
-          .ValueUnsafe();
+          .MoveValueUnsafe();
   std::cout << datum.ToString() << std::endl;
 }
 
@@ -58,23 +58,23 @@ void cum_sum(const std::shared_ptr<arrow::Table>& tbl) {
   arrow::Datum datum =
       ac::CallFunction("cumulative_sum",
                        {tbl->GetColumnByName("capacity_bytes")}, &opts)
-          .ValueUnsafe();
+          .MoveValueUnsafe();
   std::cout << datum.ToString() << std::endl;
 }
 
 arrow::Datum equaller(const std::shared_ptr<arrow::Table>& tbl) {
   return ac::CallFunction("equal", {tbl->GetColumnByName("model"),
                                     arrow::MakeScalar("ST8000DM002")})
-      .ValueUnsafe();
+      .MoveValueUnsafe();
 }
 
 std::shared_ptr<arrow::Table> filter_model(
     const std::shared_ptr<arrow::Table>& tbl) {
   arrow::Datum filt = equaller(tbl);
-  auto x = ac::Filter(tbl, filt).ValueUnsafe();
+  auto x = ac::Filter(tbl, filt).MoveValueUnsafe();
   arrow::Datum datum =
       ac::CallFunction("filter", {tbl->GetColumnByName("model"), filt})
-          .ValueUnsafe();
+          .MoveValueUnsafe();
   return x.table();
 }
 
@@ -83,16 +83,16 @@ std::shared_ptr<arrow::Table> failures(
   arrow::Datum mask =
       ac::CallFunction("greater",
                        {tbl->GetColumnByName("failure"), arrow::MakeScalar(0)})
-          .ValueUnsafe();
-  return ac::CallFunction("filter", {tbl, mask}).ValueUnsafe().table();
+          .MoveValueUnsafe();
+  return ac::CallFunction("filter", {tbl, mask}).MoveValueUnsafe().table();
 }
 
 std::shared_ptr<arrow::Table> my_model(std::shared_ptr<arrow::Table>& tbl) {
   std::shared_ptr<arrow::Scalar> model_str = arrow::MakeScalar("ST8000DM002");
   arrow::Datum mask =
       ac::CallFunction("equal", {tbl->GetColumnByName("model"), model_str})
-          .ValueUnsafe();
-  return ac::Filter(tbl, mask).ValueUnsafe().table();
+          .MoveValueUnsafe();
+  return ac::Filter(tbl, mask).MoveValueUnsafe().table();
 }
 
 std::shared_ptr<arrow::Table> read_parquet(const char* filename) {

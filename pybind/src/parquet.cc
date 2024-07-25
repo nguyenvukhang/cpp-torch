@@ -60,8 +60,16 @@ void cum_sum(const std::shared_ptr<arrow::Table>& tbl) {
   std::cout << datum.ToString() << std::endl;
 }
 
+void equaller(const std::shared_ptr<arrow::Table>& tbl) {
+  std::shared_ptr<arrow::Scalar> val = arrow::MakeScalar("ST8000DM002");
+  arrow::Datum datum = arrow::compute::CallFunction(
+                           "equal", {tbl->GetColumnByName("model"), val})
+                           .ValueUnsafe();
+  std::cout << datum.ToString() << std::endl;
+}
+
 std::shared_ptr<arrow::Table> my_model(std::shared_ptr<arrow::Table>& tbl) {
-  cum_sum(tbl);
+  equaller(tbl);
   std::shared_ptr<arrow::dataset::ScanOptions> options =
       std::make_shared<arrow::dataset::ScanOptions>();
   options->filter =

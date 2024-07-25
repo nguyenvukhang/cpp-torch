@@ -19,9 +19,27 @@ namespace ac = arrow::compute;
 class Window : public RingBuf<std::shared_ptr<arrow::Table>> {
   const int pos_len, neg_len;
 
+  std::shared_ptr<arrow::Table> standardize(std::shared_ptr<arrow::Table> tbl) {
+    return tbl;
+  }
+
+  std::shared_ptr<arrow::Table> get(int idx) {
+    return RingBuf::operator[](idx);
+  }
+
  public:
   Window(int neg_len, int pos_len)
       : RingBuf(neg_len + pos_len), pos_len(pos_len), neg_len(neg_len) {
+  }
+
+  std::shared_ptr<arrow::Table> get_all() {
+    std::vector<std::shared_ptr<arrow::Table>> tbls;
+    for (int i = capacity - 1; i >= 0; i--)
+      if (get(-i) != NULL) tbls.push_back(get(-i));
+    auto opts = arrow::ConcatenateTablesOptions();
+    opts.unify_schemas = true;
+    opts.field_merge_options.promote_integer_to_float = true;
+    return arrow::ConcatenateTables(tbls, opts).ValueUnsafe();
   }
 
   void push(std::shared_ptr<arrow::Table> tbl) {
@@ -88,16 +106,7 @@ std::shared_ptr<arrow::Table> run() {
     win.push(tbl);
   }
 
-  std::vector<std::shared_ptr<arrow::Table>> tbls;
-  for (int i = 0; i < 2; i++) {
-    if (win[-i] != NULL) tbls.push_back(win[-i]);
-  }
-  return win[-1];
-  std ::cout << tbls.size() << std::endl;
-  auto mega = arrow::ConcatenateTables(tbls).ValueUnsafe();
-  return mega;
-
-  // return win[-2];
+  return win.get_all();
 }
 
 PYBIND11_MODULE(window_cpp, m) {

@@ -83,15 +83,17 @@ void py2c(std::shared_ptr<arrow::Table> tbl) {
 
 std::shared_ptr<arrow::Table> run() {
   Window win(7, 30);
-  for (int i = 0; i < 40; i++) {
+  for (int i = 0; i < 42; i++) {
     auto tbl = read_parquet((std::string(DATES[i]) + ".parquet").c_str());
     win.push(tbl);
   }
 
   std::vector<std::shared_ptr<arrow::Table>> tbls;
-  for (int i = 0; i < 1; i++) {
-    if (win[-i] != NULL) tbls.emplace_back(win[-i]);
+  for (int i = 0; i < 2; i++) {
+    if (win[-i] != NULL) tbls.push_back(win[-i]);
   }
+  return win[-1];
+  std ::cout << tbls.size() << std::endl;
   auto mega = arrow::ConcatenateTables(tbls).ValueUnsafe();
   return mega;
 

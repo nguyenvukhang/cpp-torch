@@ -1,13 +1,16 @@
 #include <arrow/api.h>
+#include <arrow/compute/api.h>
 #include <arrow/io/api.h>
 #include <arrow/python/pyarrow.h>
 #include <parquet/arrow/reader.h>
 #include <pybind11/pybind11.h>
 
+#include <ctime>
 #include <filesystem>
 #include <iostream>
 
 #include "bridge.h"
+#include "dates2018.h"
 #include "parquet.h"
 #include "ringbuf.h"
 
@@ -20,6 +23,16 @@ class Window : public RingBuf<std::shared_ptr<arrow::Table>> {
   }
 
   void push(std::shared_ptr<arrow::Table> tbl) {
+    // https://arrow.apache.org/docs/cpp/compute.html
+    arrow::Datum d =
+        arrow::compute::CallFunction(
+            "greater", {tbl->GetColumnByName("failure"), arrow::MakeScalar(0)})
+            .ValueUnsafe();
+    // return arrow::compute::CallFunction(
+    //            "equal",
+    //            {tbl->GetColumnByName("model"),
+    //            arrow::MakeScalar("ST8000DM002")})
+    //     .ValueUnsafe();
     RingBuf::push(tbl);
   }
 };
@@ -36,11 +49,9 @@ void py2c(std::shared_ptr<arrow::Table> tbl) {
 
 std::shared_ptr<arrow::Table> run() {
   Window win(7, 30);
-#define PUSH(x) win.push(read_parquet(x ".parquet"));
-  PUSH("2018-01-01");
-  PUSH("2018-01-02");
-  PUSH("2018-01-03");
-#undef PUSH
+  for (int i = 0; i < 40; i++) {
+    win.push(read_parquet((std::string(DATES[i]) + ".parquet").c_str()));
+  }
 
   return win[-2];
 }

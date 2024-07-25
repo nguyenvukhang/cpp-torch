@@ -6,15 +6,19 @@
 #include <arrow/datum.h>
 #include <arrow/io/api.h>
 
+#include <ctime>
+
 #include "arrow/compute/api_vector.h"
 
 namespace fs = std::filesystem;
+namespace ac = arrow::compute;
 
 // `/mnt/shared/datasets/backblaze/parquet`
 const fs::path PQ_DIR = "/Users/khang/.local/data/backblaze/parquets";
 
 arrow::Status read_parquet(std::shared_ptr<arrow::Table>& tbl,
                            const char* filename) {
+  std::cout << "Filename: " << filename << std::endl;
   std::shared_ptr<arrow::io::ReadableFile> infile;
   std::unique_ptr<parquet::arrow::FileReader> reader;
   ARROW_ASSIGN_OR_RAISE(infile,
@@ -26,13 +30,12 @@ arrow::Status read_parquet(std::shared_ptr<arrow::Table>& tbl,
 }
 
 void min_maxer(const std::shared_ptr<arrow::Table>& tbl) {
-  arrow::compute::ScalarAggregateOptions scalar_aggregate_options;
+  ac::ScalarAggregateOptions scalar_aggregate_options;
   scalar_aggregate_options.skip_nulls = false;
 
   arrow::Datum min_max =
-      arrow::compute::CallFunction("min_max",
-                                   {tbl->GetColumnByName("capacity_bytes")},
-                                   &scalar_aggregate_options)
+      ac::CallFunction("min_max", {tbl->GetColumnByName("capacity_bytes")},
+                       &scalar_aggregate_options)
           .ValueUnsafe();
 
   std::shared_ptr<arrow::Scalar> min_value, max_value;
@@ -45,44 +48,52 @@ void min_maxer(const std::shared_ptr<arrow::Table>& tbl) {
 void adder(const std::shared_ptr<arrow::Table>& tbl) {
   std::shared_ptr<arrow::Scalar> increment = arrow::MakeScalar(10);
   arrow::Datum datum =
-      arrow::compute::CallFunction(
-          "add", {tbl->GetColumnByName("capacity_bytes"), increment})
+      ac::CallFunction("add",
+                       {tbl->GetColumnByName("capacity_bytes"), increment})
           .ValueUnsafe();
   std::cout << datum.ToString() << std::endl;
 }
 
 void cum_sum(const std::shared_ptr<arrow::Table>& tbl) {
-  arrow::compute::CumulativeOptions opts;
+  ac::CumulativeOptions opts;
   arrow::Datum datum =
-      arrow::compute::CallFunction(
-          "cumulative_sum", {tbl->GetColumnByName("capacity_bytes")}, &opts)
+      ac::CallFunction("cumulative_sum",
+                       {tbl->GetColumnByName("capacity_bytes")}, &opts)
           .ValueUnsafe();
   std::cout << datum.ToString() << std::endl;
 }
 
 arrow::Datum equaller(const std::shared_ptr<arrow::Table>& tbl) {
-  return arrow::compute::CallFunction(
-             "equal",
-             {tbl->GetColumnByName("model"), arrow::MakeScalar("ST8000DM002")})
+  return ac::CallFunction("equal", {tbl->GetColumnByName("model"),
+                                    arrow::MakeScalar("ST8000DM002")})
       .ValueUnsafe();
 }
 
 std::shared_ptr<arrow::Table> filter_model(
     const std::shared_ptr<arrow::Table>& tbl) {
   arrow::Datum filt = equaller(tbl);
-  auto x = arrow::compute::Filter(tbl, filt).ValueUnsafe();
-  arrow::Datum datum = arrow::compute::CallFunction(
-                           "filter", {tbl->GetColumnByName("model"), filt})
-                           .ValueUnsafe();
+  auto x = ac::Filter(tbl, filt).ValueUnsafe();
+  arrow::Datum datum =
+      ac::CallFunction("filter", {tbl->GetColumnByName("model"), filt})
+          .ValueUnsafe();
   return x.table();
+}
+
+std::shared_ptr<arrow::Table> failures(
+    const std::shared_ptr<arrow::Table>& tbl) {
+  arrow::Datum mask =
+      ac::CallFunction("greater",
+                       {tbl->GetColumnByName("failure"), arrow::MakeScalar(0)})
+          .ValueUnsafe();
+  return ac::CallFunction("filter", {tbl, mask}).ValueUnsafe().table();
 }
 
 std::shared_ptr<arrow::Table> my_model(std::shared_ptr<arrow::Table>& tbl) {
   std::shared_ptr<arrow::Scalar> model_str = arrow::MakeScalar("ST8000DM002");
-  arrow::Datum mask = arrow::compute::CallFunction(
-                          "equal", {tbl->GetColumnByName("model"), model_str})
-                          .ValueUnsafe();
-  return arrow::compute::Filter(tbl, mask).ValueUnsafe().table();
+  arrow::Datum mask =
+      ac::CallFunction("equal", {tbl->GetColumnByName("model"), model_str})
+          .ValueUnsafe();
+  return ac::Filter(tbl, mask).ValueUnsafe().table();
 }
 
 std::shared_ptr<arrow::Table> read_parquet(const char* filename) {

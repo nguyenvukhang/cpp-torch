@@ -2,7 +2,11 @@ import sys
 
 sys.path.append(".build")
 
-import mylib
+import window_cpp
 
 
-print(mylib.read_parquet())
+tbl = window_cpp.run()
+if tbl is None:
+    print(tbl)
+else:
+    print(tbl.to_pandas())

@@ -42,7 +42,17 @@ void min_maxer(const std::shared_ptr<arrow::Table>& tbl) {
   printf("Min: %s\n", min_value->ToString().c_str());
 }
 
+void adder(const std::shared_ptr<arrow::Table>& tbl) {
+  std::shared_ptr<arrow::Scalar> increment = arrow::MakeScalar(10);
+  arrow::Datum datum =
+      arrow::compute::CallFunction(
+          "add", {tbl->GetColumnByName("capacity_bytes"), increment})
+          .ValueUnsafe();
+  std::cout << datum.ToString() << std::endl;
+}
+
 std::shared_ptr<arrow::Table> my_model(std::shared_ptr<arrow::Table>& tbl) {
+  adder(tbl);
   std::shared_ptr<arrow::dataset::ScanOptions> options =
       std::make_shared<arrow::dataset::ScanOptions>();
   options->filter =

@@ -60,27 +60,29 @@ void cum_sum(const std::shared_ptr<arrow::Table>& tbl) {
   std::cout << datum.ToString() << std::endl;
 }
 
-void equaller(const std::shared_ptr<arrow::Table>& tbl) {
-  std::shared_ptr<arrow::Scalar> val = arrow::MakeScalar("ST8000DM002");
+arrow::Datum equaller(const std::shared_ptr<arrow::Table>& tbl) {
+  return arrow::compute::CallFunction(
+             "equal",
+             {tbl->GetColumnByName("model"), arrow::MakeScalar("ST8000DM002")})
+      .ValueUnsafe();
+}
+
+std::shared_ptr<arrow::Table> filter_model(
+    const std::shared_ptr<arrow::Table>& tbl) {
+  arrow::Datum filt = equaller(tbl);
+  auto x = arrow::compute::Filter(tbl, filt).ValueUnsafe();
   arrow::Datum datum = arrow::compute::CallFunction(
-                           "equal", {tbl->GetColumnByName("model"), val})
+                           "filter", {tbl->GetColumnByName("model"), filt})
                            .ValueUnsafe();
-  std::cout << datum.ToString() << std::endl;
+  return x.table();
 }
 
 std::shared_ptr<arrow::Table> my_model(std::shared_ptr<arrow::Table>& tbl) {
-  equaller(tbl);
-  std::shared_ptr<arrow::dataset::ScanOptions> options =
-      std::make_shared<arrow::dataset::ScanOptions>();
-  options->filter =
-      arrow::compute::equal(arrow::compute::field_ref("model"),
-                            arrow::compute::literal("ST8000DM002"));
-  return arrow::dataset::ScannerBuilder(
-             std::make_shared<arrow::dataset::InMemoryDataset>(tbl), options)
-      .Finish()
-      .ValueUnsafe()
-      ->ToTable()
-      .ValueUnsafe();
+  std::shared_ptr<arrow::Scalar> model_str = arrow::MakeScalar("ST8000DM002");
+  arrow::Datum mask = arrow::compute::CallFunction(
+                          "equal", {tbl->GetColumnByName("model"), model_str})
+                          .ValueUnsafe();
+  return arrow::compute::Filter(tbl, mask).ValueUnsafe().table();
 }
 
 std::shared_ptr<arrow::Table> read_parquet(const char* filename) {

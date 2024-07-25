@@ -10,10 +10,9 @@ class RingBuf {
     return v >= 0 ? v : v + capacity;
   }
 
- protected:
+ public:
   const int capacity;
 
- public:
   RingBuf(int capacity)
       : capacity(capacity),
         ptr(-1),

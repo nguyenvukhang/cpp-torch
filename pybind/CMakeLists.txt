@@ -7,7 +7,7 @@ endif()
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS YES)
 set(PYTHON_SITE_PACKAGE_DIR "/home/appliedai/v/.local/micromamba/envs/dfp/lib/python3.10/site-packages")

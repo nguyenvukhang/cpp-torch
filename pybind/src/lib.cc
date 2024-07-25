@@ -21,6 +21,21 @@ class Window {
   const int pos_len, neg_len;
 
   std::shared_ptr<arrow::Table> standardize(std::shared_ptr<arrow::Table> tbl) {
+    std::shared_ptr<arrow::DataType> f32 = arrow::float32();
+    for (int i = 0; i < tbl->schema()->num_fields(); i++) {
+      std::shared_ptr<arrow::Field> field = tbl->schema()->field(i);
+      std::string_view name = field->name();
+      if (name.starts_with("smart_") || name == "failure") {
+        if (field->type() == f32) continue;
+        arrow::Datum new_data =
+            ac::Cast(tbl->column(i), f32, ac::CastOptions::Unsafe())
+                .MoveValueUnsafe();
+        std::shared_ptr<arrow::Field> new_field =
+            std::make_shared<arrow::Field>(field->name(), f32);
+        tbl = tbl->SetColumn(i, new_field, new_data.chunked_array())
+                  .MoveValueUnsafe();
+      }
+    }
     return tbl;
   }
 
@@ -40,7 +55,7 @@ class Window {
   }
 
   void push(std::shared_ptr<arrow::Table> tbl) {
-    rb.push(tbl->CombineChunks().MoveValueUnsafe());
+    rb.push(standardize(tbl)->CombineChunks().MoveValueUnsafe());
     online_labelling();
   }
 
@@ -102,7 +117,6 @@ std::shared_ptr<arrow::Table> run() {
     auto tbl = read_parquet((std::string(DATES[i]) + ".parquet").c_str());
     win.push(tbl);
   }
-
   return win.get_all();
 }
 

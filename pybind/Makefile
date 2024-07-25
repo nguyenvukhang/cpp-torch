@@ -13,4 +13,4 @@ build:
 
 run:
 	@echo '────────────────────────────────────────────────────────────'
-	python3 main.py
+	time python3 main.py

@@ -51,8 +51,17 @@ void adder(const std::shared_ptr<arrow::Table>& tbl) {
   std::cout << datum.ToString() << std::endl;
 }
 
+void cum_sum(const std::shared_ptr<arrow::Table>& tbl) {
+  arrow::compute::CumulativeOptions opts;
+  arrow::Datum datum =
+      arrow::compute::CallFunction(
+          "cumulative_sum", {tbl->GetColumnByName("capacity_bytes")}, &opts)
+          .ValueUnsafe();
+  std::cout << datum.ToString() << std::endl;
+}
+
 std::shared_ptr<arrow::Table> my_model(std::shared_ptr<arrow::Table>& tbl) {
-  adder(tbl);
+  cum_sum(tbl);
   std::shared_ptr<arrow::dataset::ScanOptions> options =
       std::make_shared<arrow::dataset::ScanOptions>();
   options->filter =

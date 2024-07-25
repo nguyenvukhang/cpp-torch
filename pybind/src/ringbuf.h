@@ -2,8 +2,9 @@
 
 template <class T>
 class RingBuf {
-  int pos_len, neg_len, capacity, ptr;
-  std::unique_ptr<T[]> buffer;
+  const int capacity;
+  int ptr;
+  const std::unique_ptr<T[]> buffer;
 
   int real_index(int idx) const {
     int v = (ptr + idx) % capacity;
@@ -11,12 +12,10 @@ class RingBuf {
   }
 
  public:
-  RingBuf(int neg_len, int pos_len)
-      : pos_len(pos_len),
-        neg_len(neg_len),
-        capacity(pos_len + neg_len),
+  RingBuf(int capacity)
+      : capacity(capacity),
         ptr(-1),
-        buffer(std::unique_ptr<T[]>(new T[pos_len + neg_len])) {
+        buffer(std::unique_ptr<T[]>(new T[capacity])) {
   }
 
   T const& operator[](int idx) const {

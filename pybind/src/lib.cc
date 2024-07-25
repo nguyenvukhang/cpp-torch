@@ -49,20 +49,24 @@ class Window : public RingBuf<std::shared_ptr<arrow::Table>> {
       if ((tbl = RingBuf::operator[](i)) == NULL) continue;
       arrow::Datum mask =
           ac::IsIn(tbl->GetColumnByName("serial_number"), opts).ValueUnsafe();
-      // If it's in the list of failed serial numbers, update the value to 1
-      // else, keep the current value.
 
-      tbl = ac::CallFunction("if_else", {mask, arrow::MakeScalar(1),
-                                         tbl->GetColumnByName("failure")})
-                ->table();
-      std::cout << "-------------->" << std::endl;
+      std::shared_ptr<arrow::ChunkedArray> label_col =
+          tbl->GetColumnByName("failure");
+      arrow::Datum x =
+          ac::CallFunction("if_else", {mask, arrow::MakeScalar(1), label_col})
+              .ValueUnsafe();
+
+      bool set = 0;
+      for (int j = 0; j < tbl->schema()->num_fields(); j++) {
+        const std::shared_ptr<arrow::Field> f = tbl->schema()->field(j);
+        if (f->name() == "failure") {
+          tbl = tbl->SetColumn(j, f, x.chunked_array()).ValueUnsafe();
+          set |= 1;
+          break;
+        }
+      }
+      if (!set) exit(1);
       update(i, tbl);
-
-      // // arrow::Datum mask2 = ac::CallFunction("equal", )
-      //
-      // tbl = ac::Filter(tbl, mask)->table();
-      // std::cout << tbl->GetColumnByName("serial_number")->ToString()
-      //           << std::endl;
     }
   }
 };

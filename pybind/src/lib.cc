@@ -12,11 +12,10 @@
 
 template <class T>
 class Window {
- public:
   int pos_len, neg_len, capacity, ptr;
   std::unique_ptr<T[]> buffer;
 
-  int real_index(int idx) {
+  int real_index(int idx) const {
     int v = (ptr + idx) % capacity;
     return v >= 0 ? v : v + capacity;
   }
@@ -28,6 +27,10 @@ class Window {
         capacity(pos_len + neg_len),
         ptr(-1),
         buffer(std::unique_ptr<T[]>(new T[pos_len + neg_len])) {
+  }
+
+  T const& operator[](int idx) const {
+    return buffer[real_index(idx)];
   }
 
   T get(int idx) {
@@ -57,7 +60,7 @@ std::shared_ptr<arrow::Table> run() {
   PUSH("2016-01-03");
 #undef PUSH
 
-  return win.get(-2);
+  return win[-2];
 }
 
 PYBIND11_MODULE(window_cpp, m) {

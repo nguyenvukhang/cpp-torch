@@ -9,38 +9,7 @@
 
 #include "bridge.h"
 #include "parquet.h"
-
-template <class T>
-class Window {
-  int pos_len, neg_len, capacity, ptr;
-  std::unique_ptr<T[]> buffer;
-
-  int real_index(int idx) const {
-    int v = (ptr + idx) % capacity;
-    return v >= 0 ? v : v + capacity;
-  }
-
- public:
-  Window(int neg_len, int pos_len)
-      : pos_len(pos_len),
-        neg_len(neg_len),
-        capacity(pos_len + neg_len),
-        ptr(-1),
-        buffer(std::unique_ptr<T[]>(new T[pos_len + neg_len])) {
-  }
-
-  T const& operator[](int idx) const {
-    return buffer[real_index(idx)];
-  }
-
-  T get(int idx) {
-    return buffer[real_index(idx)];
-  }
-
-  void push(T item) {
-    buffer[ptr = (ptr + 1) % capacity] = item;
-  }
-};
+#include "ringbuf.h"
 
 std::shared_ptr<arrow::Table> py_read_parquet() {
   return read_parquet("2016-01-01.parquet");
@@ -53,7 +22,7 @@ void py2c(std::shared_ptr<arrow::Table> tbl) {
 }
 
 std::shared_ptr<arrow::Table> run() {
-  Window<std::shared_ptr<arrow::Table>> win(7, 30);
+  RingBuf<std::shared_ptr<arrow::Table>> win(7, 30);
 #define PUSH(x) win.push(read_parquet(x ".parquet"));
   PUSH("2018-01-01");
   PUSH("2018-01-02");

@@ -49,10 +49,20 @@ class Window : public RingBuf<std::shared_ptr<arrow::Table>> {
       if ((tbl = RingBuf::operator[](i)) == NULL) continue;
       arrow::Datum mask =
           ac::IsIn(tbl->GetColumnByName("serial_number"), opts).ValueUnsafe();
+      // If it's in the list of failed serial numbers, update the value to 1
+      // else, keep the current value.
 
-      tbl = ac::Filter(tbl, mask)->table();
-      std::cout << tbl->GetColumnByName("serial_number")->ToString()
-                << std::endl;
+      tbl = ac::CallFunction("if_else", {mask, arrow::MakeScalar(1),
+                                         tbl->GetColumnByName("failure")})
+                ->table();
+      std::cout << "-------------->" << std::endl;
+      update(i, tbl);
+
+      // // arrow::Datum mask2 = ac::CallFunction("equal", )
+      //
+      // tbl = ac::Filter(tbl, mask)->table();
+      // std::cout << tbl->GetColumnByName("serial_number")->ToString()
+      //           << std::endl;
     }
   }
 };

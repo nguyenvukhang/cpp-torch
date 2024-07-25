@@ -26,8 +26,8 @@ class RingBuf {
     return buffer[real_index(idx)];
   }
 
-  void push(T item) {
-    buffer[ptr = (ptr + 1) % capacity] = item;
+  void push(T&& item) {
+    buffer[ptr = (ptr + 1) % capacity] = std::move(item);
   }
 
   void update(int idx, T item) {

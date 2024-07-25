@@ -14,6 +14,8 @@
 #include "parquet.h"
 #include "ringbuf.h"
 
+namespace ac = arrow::compute;
+
 class Window : public RingBuf<std::shared_ptr<arrow::Table>> {
   const int pos_len, neg_len;
 
@@ -22,18 +24,21 @@ class Window : public RingBuf<std::shared_ptr<arrow::Table>> {
       : RingBuf(neg_len + pos_len), pos_len(pos_len), neg_len(neg_len) {
   }
 
-  void push(std::shared_ptr<arrow::Table> tbl) {
+  void push(std::shared_ptr<arrow::Table> _tbl) {
+    std::shared_ptr<arrow::Table> tbl = _tbl->CombineChunks().MoveValueUnsafe();
     // https://arrow.apache.org/docs/cpp/compute.html
-    arrow::Datum d =
+    arrow::Datum m_failed =
         arrow::compute::CallFunction(
             "greater", {tbl->GetColumnByName("failure"), arrow::MakeScalar(0)})
-            .ValueUnsafe();
-    // return arrow::compute::CallFunction(
-    //            "equal",
-    //            {tbl->GetColumnByName("model"),
-    //            arrow::MakeScalar("ST8000DM002")})
-    //     .ValueUnsafe();
-    RingBuf::push(tbl);
+            .MoveValueUnsafe();
+
+    std::shared_ptr<arrow::ChunkedArray> failed_serial_numbers =
+        ac::CallFunction("filter", {tbl, m_failed})
+            .ValueUnsafe()
+            .table()
+            ->GetColumnByName("serial_number");
+    std::cout << failed_serial_numbers->ToString() << std::endl;
+    RingBuf::push(std::move(tbl));
   }
 };
 
@@ -50,7 +55,8 @@ void py2c(std::shared_ptr<arrow::Table> tbl) {
 std::shared_ptr<arrow::Table> run() {
   Window win(7, 30);
   for (int i = 0; i < 40; i++) {
-    win.push(read_parquet((std::string(DATES[i]) + ".parquet").c_str()));
+    auto tbl = read_parquet((std::string(DATES[i]) + ".parquet").c_str());
+    win.push(tbl);
   }
 
   return win[-2];

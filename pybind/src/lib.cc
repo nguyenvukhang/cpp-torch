@@ -55,9 +55,9 @@ void py2c(std::shared_ptr<arrow::Table> tbl) {
 std::shared_ptr<arrow::Table> run() {
   Window<std::shared_ptr<arrow::Table>> win(7, 30);
 #define PUSH(x) win.push(read_parquet(x ".parquet"));
-  PUSH("2016-01-01");
-  PUSH("2016-01-02");
-  PUSH("2016-01-03");
+  PUSH("2018-01-01");
+  PUSH("2018-01-02");
+  PUSH("2018-01-03");
 #undef PUSH
 
   return win[-2];

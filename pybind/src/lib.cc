@@ -24,21 +24,36 @@ class Window : public RingBuf<std::shared_ptr<arrow::Table>> {
       : RingBuf(neg_len + pos_len), pos_len(pos_len), neg_len(neg_len) {
   }
 
-  void push(std::shared_ptr<arrow::Table> _tbl) {
-    std::shared_ptr<arrow::Table> tbl = _tbl->CombineChunks().MoveValueUnsafe();
-    // https://arrow.apache.org/docs/cpp/compute.html
-    arrow::Datum m_failed =
-        arrow::compute::CallFunction(
-            "greater", {tbl->GetColumnByName("failure"), arrow::MakeScalar(0)})
-            .MoveValueUnsafe();
+  void push(std::shared_ptr<arrow::Table> tbl) {
+    RingBuf::push(tbl->CombineChunks().MoveValueUnsafe());
+    online_labelling();
+  }
 
+  void online_labelling() {
+    std::shared_ptr<arrow::Table> today = RingBuf::operator[](0);
+    // https://arrow.apache.org/docs/cpp/compute.html
+    arrow::Datum m_failed = arrow::compute::CallFunction(
+                                "greater", {today->GetColumnByName("failure"),
+                                            arrow::MakeScalar(0)})
+                                .MoveValueUnsafe();
     std::shared_ptr<arrow::ChunkedArray> failed_serial_numbers =
-        ac::CallFunction("filter", {tbl, m_failed})
+        ac::CallFunction("filter", {today, m_failed})
             .ValueUnsafe()
             .table()
             ->GetColumnByName("serial_number");
-    std::cout << failed_serial_numbers->ToString() << std::endl;
-    RingBuf::push(std::move(tbl));
+
+    ac::SetLookupOptions opts = ac::SetLookupOptions(failed_serial_numbers);
+
+    std::shared_ptr<arrow::Table> tbl;
+    for (int i = 1; i < capacity; i++) {
+      if ((tbl = RingBuf::operator[](i)) == NULL) continue;
+      arrow::Datum mask =
+          ac::IsIn(tbl->GetColumnByName("serial_number"), opts).ValueUnsafe();
+
+      tbl = ac::Filter(tbl, mask)->table();
+      std::cout << tbl->GetColumnByName("serial_number")->ToString()
+                << std::endl;
+    }
   }
 };
 
@@ -54,7 +69,7 @@ void py2c(std::shared_ptr<arrow::Table> tbl) {
 
 std::shared_ptr<arrow::Table> run() {
   Window win(7, 30);
-  for (int i = 0; i < 40; i++) {
+  for (int i = 0; i < 50; i++) {
     auto tbl = read_parquet((std::string(DATES[i]) + ".parquet").c_str());
     win.push(tbl);
   }

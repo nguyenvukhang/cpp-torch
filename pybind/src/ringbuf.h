@@ -2,7 +2,6 @@
 
 template <class T>
 class RingBuf {
-  const int capacity;
   int ptr;
   const std::unique_ptr<T[]> buffer;
 
@@ -10,6 +9,9 @@ class RingBuf {
     int v = (ptr + idx) % capacity;
     return v >= 0 ? v : v + capacity;
   }
+
+ protected:
+  const int capacity;
 
  public:
   RingBuf(int capacity)

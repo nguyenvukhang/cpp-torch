@@ -6,6 +6,8 @@
 #include <arrow/datum.h>
 #include <arrow/io/api.h>
 
+#include "arrow/compute/api_vector.h"
+
 namespace fs = std::filesystem;
 
 // `/mnt/shared/datasets/backblaze/parquet`
@@ -24,6 +26,30 @@ arrow::Status read_parquet(std::shared_ptr<arrow::Table>& tbl,
 }
 
 std::shared_ptr<arrow::Table> my_model(std::shared_ptr<arrow::Table>& tbl) {
+  std::shared_ptr<arrow::compute::FilterOptions> fo =
+      std::make_shared<arrow::compute::FilterOptions>();
+  fo->null_selection_behavior = arrow::compute::FilterOptions::DROP;
+
+  arrow::compute::ScalarAggregateOptions scalar_aggregate_options;
+  scalar_aggregate_options.skip_nulls = false;
+
+  arrow::Datum min_max =
+      arrow::compute::CallFunction("min_max",
+                                   {tbl->GetColumnByName("capacity_bytes")},
+                                   &scalar_aggregate_options)
+          .ValueUnsafe();
+
+  std::shared_ptr<arrow::Scalar> min_value, max_value;
+  min_value = min_max.scalar_as<arrow::StructScalar>().value[0];
+  max_value = min_max.scalar_as<arrow::StructScalar>().value[1];
+  printf("Max: %s\n", max_value->ToString().c_str());
+  printf("Min: %s\n", min_value->ToString().c_str());
+
+  std::shared_ptr<arrow::ChunkedArray> model_values =
+      tbl->GetColumnByName("model");
+
+  auto _ = arrow::compute::Filter(model_values, tbl->GetColumnByName("model"));
+
   std::shared_ptr<arrow::dataset::ScanOptions> options =
       std::make_shared<arrow::dataset::ScanOptions>();
   options->filter =

@@ -1,5 +1,6 @@
 BUILD_DIR := .build
 MICROMAMBA_DIR := /home/appliedai/v/.local/micromamba/envs/dfp
+MICROMAMBA_DIR := /Users/khang/.local/micromamba/envs/ml
 LIBARROW_PATH := $(MICROMAMBA_DIR)/lib/libarrow.so
 PYTHON3 := $(MICROMAMBA_DIR)/bin/python3
 

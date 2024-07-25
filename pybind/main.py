@@ -2,8 +2,7 @@ import sys
 
 sys.path.append(".build")
 
-import mylib, pyarrow as pa
+import mylib
 
-tbl = mylib.test_get()
-print(tbl)
-# print(tbl.to_pandas())
+
+print(mylib.read_parquet())

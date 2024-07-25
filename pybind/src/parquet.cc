@@ -18,7 +18,6 @@ const fs::path PQ_DIR = "/Users/khang/.local/data/backblaze/parquets";
 
 arrow::Status read_parquet(std::shared_ptr<arrow::Table>& tbl,
                            const char* filename) {
-  std::cout << "Filename: " << filename << std::endl;
   std::shared_ptr<arrow::io::ReadableFile> infile;
   std::unique_ptr<parquet::arrow::FileReader> reader;
   ARROW_ASSIGN_OR_RAISE(infile,

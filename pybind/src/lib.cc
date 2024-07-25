@@ -16,26 +16,23 @@
 
 namespace ac = arrow::compute;
 
-class Window : public RingBuf<std::shared_ptr<arrow::Table>> {
+class Window {
+  RingBuf<std::shared_ptr<arrow::Table>> rb;
   const int pos_len, neg_len;
 
   std::shared_ptr<arrow::Table> standardize(std::shared_ptr<arrow::Table> tbl) {
     return tbl;
   }
 
-  std::shared_ptr<arrow::Table> get(int idx) {
-    return RingBuf::operator[](idx);
-  }
-
  public:
   Window(int neg_len, int pos_len)
-      : RingBuf(neg_len + pos_len), pos_len(pos_len), neg_len(neg_len) {
+      : rb(neg_len + pos_len), pos_len(pos_len), neg_len(neg_len) {
   }
 
   std::shared_ptr<arrow::Table> get_all() {
     std::vector<std::shared_ptr<arrow::Table>> tbls;
-    for (int i = capacity - 1; i >= 0; i--)
-      if (get(-i) != NULL) tbls.push_back(get(-i));
+    for (int i = rb.capacity - 1; i >= 0; i--)
+      if (rb[-i] != NULL) tbls.push_back(rb[-i]);
     auto opts = arrow::ConcatenateTablesOptions();
     opts.unify_schemas = true;
     opts.field_merge_options.promote_integer_to_float = true;
@@ -43,12 +40,12 @@ class Window : public RingBuf<std::shared_ptr<arrow::Table>> {
   }
 
   void push(std::shared_ptr<arrow::Table> tbl) {
-    RingBuf::push(tbl->CombineChunks().MoveValueUnsafe());
+    rb.push(tbl->CombineChunks().MoveValueUnsafe());
     online_labelling();
   }
 
   void online_labelling() {
-    std::shared_ptr<arrow::Table> today = RingBuf::operator[](0);
+    std::shared_ptr<arrow::Table> today = rb[0];
     // https://arrow.apache.org/docs/cpp/compute.html
     arrow::Datum m_failed = arrow::compute::CallFunction(
                                 "greater", {today->GetColumnByName("failure"),
@@ -63,8 +60,8 @@ class Window : public RingBuf<std::shared_ptr<arrow::Table>> {
     ac::SetLookupOptions opts = ac::SetLookupOptions(failed_serial_numbers);
 
     std::shared_ptr<arrow::Table> tbl;
-    for (int i = 1; i < capacity; i++) {
-      if ((tbl = RingBuf::operator[](i)) == NULL) continue;
+    for (int i = 1; i < pos_len; i++) {
+      if ((tbl = rb[-i]) == NULL) continue;
       arrow::Datum mask =
           ac::IsIn(tbl->GetColumnByName("serial_number"), opts).ValueUnsafe();
 
@@ -84,7 +81,7 @@ class Window : public RingBuf<std::shared_ptr<arrow::Table>> {
         }
       }
       if (!set) exit(1);
-      update(i, tbl);
+      rb.update(-i, tbl);
     }
   }
 };
@@ -101,7 +98,7 @@ void py2c(std::shared_ptr<arrow::Table> tbl) {
 
 std::shared_ptr<arrow::Table> run() {
   Window win(7, 30);
-  for (int i = 0; i < 42; i++) {
+  for (int i = 0; i < 75; i++) {
     auto tbl = read_parquet((std::string(DATES[i]) + ".parquet").c_str());
     win.push(tbl);
   }
